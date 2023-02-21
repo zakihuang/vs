@@ -1,0 +1,193 @@
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <title>scroller</title>
+  <style>
+    .container {
+      width: 500px;
+      margin: 80px auto 0;
+    }
+
+    .wrapper {
+      position: relative;
+      width: 100%;
+      height: 380px;
+      overflow: hidden;
+    }
+
+    .view {
+      position: absolute;
+      width: 100%;
+      height: 380px;
+      border: 1px solid #678;
+      overflow-y: scroll;
+    }
+
+    .buffer-view {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 400px;
+      background: #35a22e;
+      overflow: hidden;
+    }
+
+    .actual-domain {
+      height: auto;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+    <div class="wrapper">
+      <div class="buffer-view"></div>
+      <div class="view">
+        <div class="actual-domain"></div>
+      </div>
+    </div>
+  </div>
+  <script src="https://web-test.hang-xin.cn/avic/js/jquery.min.js"></script>
+  <script>
+    function $$(selector) {
+      return {
+        dom: dom(selector),
+        on: on,
+        offset: offset,
+        height: height,
+        text: text,
+        css: css,
+        append: append,
+        setData: setData,
+        value: value
+      };
+    }
+    $$.log = function () {
+      console.log.apply(console, arguments);
+    };
+
+    $$.nearestModulo = function (num, module) {
+      var val = num % module;
+      if (val === 0) {
+        return num;
+      }
+
+      return val < module / 2 ? num - val : num + (module - val);
+    };
+
+    function dom(selector) {
+      return typeof selector === "object" ? selector : $(selector).get(0);
+    }
+
+    function on(evtName, handler, bobble) {
+      addEventListener.call(this.dom, evtName, handler, !!bobble);
+    }
+
+    function offset() {
+      return {
+        left: this.dom.scrollLeft,
+        top: this.dom.scrollTop
+      };
+    }
+
+    function height(val) {
+      if (isNaN(val)) {
+        return this.dom.clientHeight;
+      } else {
+        this.dom.style.height = val;
+        return this;
+      }
+    }
+
+    function text(str) {
+      this.dom.innerText = str;
+      return this;
+    }
+
+    function css(attrs) {
+      for (var attr in attrs) {
+        if (attrs.hasOwnProperty(attr)) {
+          this.dom.style[attr] = attrs[attr] + "px";
+        }
+      }
+    }
+
+    function append(tagName, size) {
+      var docFrag = document.createDocumentFragment();
+      while (size--) {
+        docFrag.appendChild(document.createElement(tagName));
+      }
+
+      this.dom.appendChild(docFrag);
+    }
+
+    function setData(data) {
+      var childs = this.dom.childNodes;
+
+      $(childs).each(function (i, node) {
+        $(node).text(data[i].val);
+      });
+    }
+
+    function value() {
+      return this.dom.value;
+    }
+
+  </script>
+  <script>
+    var count =40000; // 数据长度
+    var data = (function () {
+      var len = count, arr = []; while (len--) arr[len] = { _rn: len, val: len + 1 }; return arr;
+    })();
+
+    var PREBUFFER = 5;     // 预缓存10条记录
+    var ROW_HEIGHT = 32;    // 每行元素高度：根据实际取值
+    var PREBUFFER_HEIGHT = PREBUFFER * ROW_HEIGHT; // 前后预缓存元素高度
+    var PREBUFFER_HEIGHT_TWICE = PREBUFFER_HEIGHT * 2;    // 前后预缓存之和高度
+
+    var VIEW_HEIGHT = $$('.view').height();    // 可视区视图高度
+    var bufferView = $$('.buffer-view').height($$.nearestModulo(VIEW_HEIGHT, ROW_HEIGHT) + PREBUFFER_HEIGHT * 2);
+
+    var ACTUALDOMAIN_HEIGHT = data.length * ROW_HEIGHT;    // 实际计算区域高度
+    var size = bufferView.height() / ROW_HEIGHT;
+    $$('.actual-domain').height(ACTUALDOMAIN_HEIGHT);
+    $('.view').on('scroll', function (evt) {
+      var offset = $$(this).offset();
+      var bottom = ACTUALDOMAIN_HEIGHT - offset.top - VIEW_HEIGHT;
+      var top = 0;
+
+      if (offset.top < PREBUFFER_HEIGHT) {
+        top = -offset.top;
+      } else if (bottom < PREBUFFER_HEIGHT) {
+        top = bottom - PREBUFFER_HEIGHT_TWICE;
+      } else {
+        top = -PREBUFFER_HEIGHT;
+      }
+
+      bufferView.css({ top: top });
+
+      var domain = range(offset.top, offset.top + VIEW_HEIGHT + PREBUFFER_HEIGHT_TWICE);
+
+      if (offset.top + PREBUFFER_HEIGHT_TWICE + VIEW_HEIGHT <= ACTUALDOMAIN_HEIGHT) {
+        bufferView.setData(data.slice(domain[0], domain[1]));
+      } else {
+        bufferView.setData(data.slice(-size));
+      }
+    });
+
+    function range(start, end) {
+      return [
+        $$.nearestModulo(start, ROW_HEIGHT) / ROW_HEIGHT,
+        $$.nearestModulo(end, ROW_HEIGHT) / ROW_HEIGHT
+      ];
+    }
+
+    bufferView.append('li', size);
+    bufferView.setData(data.slice(0, size));
+
+  </script>
+</body>
+
+</html>

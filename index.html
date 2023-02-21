@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <style>
+
+    </style>
+</head>
+
+
+<body>
+    <div id="vs"></div>
+
+    <script src="./js/layui-v2.6.8/layui.js"></script>
+    <script src="./js/lay-config.js"></script>
+
+    <script>
+        layui.use(['tablevs'], function () {
+            var form = layui.form;
+            var list = [];
+
+            for (var i = 0; i < 30000; i++) {
+                list.push({
+                    id: i + 1,
+                    text: i + 1
+                });
+            }
+
+            layui.$('#vs').virtualScroll({ list: list })
+        })
+    </script>
+
+</body>
+
+</html>
