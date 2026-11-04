@@ -1,3 +1,3 @@
 # vs
 
-我爱你中国！
+I love you, China!
