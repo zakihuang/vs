@@ -225,8 +225,10 @@
       /* ---------- 棋盘参数 ---------- */
       var COLS = 20;          // 横向格子数
       var ROWS = 20;          // 纵向格子数
-      var CELL = 20;          // 每个格子像素
+      var MAX_CELL = 20;      // 格子最大像素(桌面)
+      var MIN_CELL = 11;      // 格子最小像素(窄屏兜底)
       var GAP = 2;            // 格子之间的缝隙
+      var cellSize = MAX_CELL; // 实际使用(按屏宽算出来)
       var BASE_SPEED = 170;   // 初始每步间隔(ms)
       var MIN_SPEED = 70;     // 最快间隔(ms)
       var SPEED_STEP = 5;     // 每吃一个食物加速的毫秒数
@@ -306,26 +308,66 @@
       }
 
       /* ---------- 棋盘绘制 ---------- */
+      function viewportWidth() {
+        return window.innerWidth || document.documentElement.clientWidth || 320;
+      }
+
+      // 按屏宽挑格子尺寸，保证棋盘在小屏手机上也不会横向溢出
+      function pickCellSize() {
+        var avail = viewportWidth() - 24;      // 左右各留 12px
+        var size = Math.floor(avail / COLS);
+        if (size > MAX_CELL) {
+          size = MAX_CELL;
+        }
+        if (size < MIN_CELL) {
+          size = MIN_CELL;
+        }
+        return size;
+      }
+
+      function layout() {
+        var size = pickCellSize();
+        if (size === cellSize && cells.length) {
+          return;   // 尺寸没变，不用重排
+        }
+        cellSize = size;
+
+        var gap = cellSize >= 16 ? GAP : 1;
+        var pad = 2;
+        var total = COLS * cellSize + pad * 2;
+        boardEl.style.width = total + "px";
+        boardEl.style.height = (ROWS * cellSize + pad * 2) + "px";
+
+        for (var y = 0; y < ROWS; y++) {
+          for (var x = 0; x < COLS; x++) {
+            var cell = cells[y * COLS + x];
+            if (!cell) {
+              continue;
+            }
+            cell.style.left = (x * cellSize + pad) + "px";
+            cell.style.top = (y * cellSize + pad) + "px";
+            cell.style.width = (cellSize - gap) + "px";
+            cell.style.height = (cellSize - gap) + "px";
+          }
+        }
+      }
+
       function buildBoard() {
-        boardEl.style.width = COLS * CELL + 4 + "px";
-        boardEl.style.height = ROWS * CELL + 4 + "px";
         boardEl.style.boxSizing = "content-box";
+        cellSize = 0;   // 强制第一次 layout 生效
 
         var frag = document.createDocumentFragment();
         for (var y = 0; y < ROWS; y++) {
           for (var x = 0; x < COLS; x++) {
             var cell = document.createElement("div");
             cell.className = "cell";
-            cell.style.left = (x * CELL + 2) + "px";
-            cell.style.top = (y * CELL + 2) + "px";
-            cell.style.width = (CELL - GAP) + "px";
-            cell.style.height = (CELL - GAP) + "px";
             frag.appendChild(cell);
             cells.push(cell);
           }
         }
         // 插到 overlay 之前，保证遮罩层始终盖在格子上
         boardEl.insertBefore(frag, overlayEl);
+        layout();
       }
 
       function index(x, y) {
@@ -658,6 +700,10 @@
       bindSwipe();
       on(document, "keydown", handleKey);
       on(boardEl, "dragstart", stopEvent);
+
+      // 旋屏 / 改窗口大小时重新排一次棋盘
+      on(window, "resize", layout);
+      on(window, "orientationchange", layout);
     })();
   </script>
 </body>
