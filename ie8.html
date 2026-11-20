@@ -1,192 +1,664 @@
+<!DOCTYPE html>
 <html>
 
 <head>
   <meta charset="UTF-8">
-  <title>scroller</title>
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>贪食蛇</title>
   <style>
-    .container {
-      width: 500px;
-      margin: 80px auto 0;
+    * {
+      -webkit-tap-highlight-color: transparent;
     }
 
-    .wrapper {
-      position: relative;
-      width: 100%;
-      height: 380px;
-      overflow: hidden;
+    body {
+      margin: 0;
+      padding: 24px 12px 40px;
+      background: #0f1720;
+      color: #d8e4f0;
+      font-family: "Helvetica Neue", Helvetica, "PingFang SC", "Microsoft YaHei", sans-serif;
+      text-align: center;
     }
 
-    .view {
-      position: absolute;
-      width: 100%;
-      height: 380px;
-      border: 1px solid #678;
-      overflow-y: scroll;
+    h1 {
+      margin: 0 0 4px;
+      font-size: 24px;
+      font-weight: 600;
+      letter-spacing: 4px;
+      color: #eaf3ff;
     }
 
-    .buffer-view {
-      position: absolute;
-      top: 0;
-      left: 0;
+    .subtitle {
+      margin: 0 0 18px;
+      font-size: 12px;
+      color: #6c8399;
+      letter-spacing: 1px;
+    }
+
+    .hud {
       width: 400px;
-      background: #35a22e;
-      overflow: hidden;
+      max-width: 100%;
+      margin: 0 auto 12px;
+      font-size: 0;
+      text-align: center;
+      color: #7f95a9;
     }
 
-    .actual-domain {
-      height: auto;
+    .hud span {
+      display: inline-block;
+      width: 33.33%;
+      font-size: 13px;
+      line-height: 22px;
+    }
+
+    .hud b {
+      display: inline-block;
+      min-width: 34px;
+      color: #6ee65f;
+      font-size: 16px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .board {
+      position: relative;
+      margin: 0 auto;
+      background: #0b1118;
+      border: 2px solid #24384b;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, .45), inset 0 0 40px rgba(0, 0, 0, .6);
+    }
+
+    .cell {
+      position: absolute;
+      border-radius: 3px;
+      background: #131c26;
+    }
+
+    .snake {
+      background: #35a22e;
+      box-shadow: inset 0 0 6px rgba(0, 0, 0, .25);
+    }
+
+    .snake.head {
+      background: #7ef06f;
+      box-shadow: 0 0 10px rgba(110, 230, 95, .75);
+    }
+
+    .food {
+      background: #e8453c;
+      border-radius: 50%;
+      box-shadow: 0 0 10px rgba(232, 69, 60, .8);
+      -webkit-animation: pulse .9s ease-in-out infinite;
+      animation: pulse .9s ease-in-out infinite;
+    }
+
+    @-webkit-keyframes pulse {
+      50% { -webkit-transform: scale(.72); }
+    }
+
+    @keyframes pulse {
+      50% { transform: scale(.72); }
+    }
+
+    .overlay {
+      position: absolute;
+      left: 0;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 100%;
+      height: 100%;
+      text-align: center;
+      /* 老浏览器不支持 rgba 时退回纯色 */
+      background: #08101a;
+      background: rgba(6, 12, 18, .84);
+      cursor: pointer;
+    }
+
+    .overlay.hide {
+      display: none;
+    }
+
+    .overlay .inner {
+      position: absolute;
+      left: 0;
+      top: 50%;
+      width: 100%;
+      margin-top: -46px;
+    }
+
+    .overlay h2 {
+      margin: 0 0 8px;
+      padding: 0;
+      font-size: 22px;
+      font-weight: 600;
+      color: #eaf3ff;
+      letter-spacing: 2px;
+    }
+
+    .overlay p {
+      margin: 0;
+      padding: 0 16px;
+      font-size: 13px;
+      line-height: 1.9;
+      color: #8ba3b8;
+    }
+
+    .tips {
+      margin: 14px auto 0;
+      font-size: 12px;
+      line-height: 1.8;
+      color: #6c8399;
+    }
+
+    .pad {
+      width: 168px;
+      margin: 22px auto 0;
+    }
+
+    .pad-row {
+      text-align: center;
+      font-size: 0;
+    }
+
+    .pad button {
+      width: 52px;
+      height: 52px;
+      margin: 2px;
+      padding: 0;
+      font-size: 18px;
+      line-height: 1;
+      color: #cfe0ef;
+      background: #17232e;
+      border: 1px solid #26394c;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+
+    .pad button:active {
+      background: #23343f;
+      color: #7ef06f;
     }
   </style>
 </head>
 
 <body>
 
-  <div class="container">
-    <div class="wrapper">
-      <div class="buffer-view"></div>
-      <div class="view">
-        <div class="actual-domain"></div>
+  <h1>贪食蛇</h1>
+  <p class="subtitle">SNAKE · 20 × 20</p>
+
+  <div class="hud">
+    <span>得分 <b id="score">0</b></span>
+    <span>最高 <b id="best">0</b></span>
+    <span>长度 <b id="length">3</b></span>
+  </div>
+
+  <div class="board" id="board">
+    <div class="overlay" id="overlay">
+      <div class="inner">
+        <h2 id="overlay-title">贪食蛇</h2>
+        <p id="overlay-desc">方向键 / WASD 控制方向<br>空格 开始 · R 重新开始</p>
       </div>
     </div>
   </div>
-  <script src="https://web-test.hang-xin.cn/avic/js/jquery.min.js"></script>
+
+  <div class="tips">
+    方向键 / WASD 转向 · 空格 暂停 · R 重新开始
+  </div>
+
+  <div class="pad">
+    <div class="pad-row">
+      <button type="button" data-dir="up">▲</button>
+    </div>
+    <div class="pad-row">
+      <button type="button" data-dir="left">◀</button>
+      <button type="button" data-dir="down">▼</button>
+      <button type="button" data-dir="right">▶</button>
+    </div>
+  </div>
+
   <script>
-    function $$(selector) {
-      return {
-        dom: dom(selector),
-        on: on,
-        offset: offset,
-        height: height,
-        text: text,
-        css: css,
-        append: append,
-        setData: setData,
-        value: value
+    (function () {
+      "use strict";
+
+      /* ---------- 棋盘参数 ---------- */
+      var COLS = 20;          // 横向格子数
+      var ROWS = 20;          // 纵向格子数
+      var CELL = 20;          // 每个格子像素
+      var GAP = 2;            // 格子之间的缝隙
+      var BASE_SPEED = 170;   // 初始每步间隔(ms)
+      var MIN_SPEED = 70;     // 最快间隔(ms)
+      var SPEED_STEP = 5;     // 每吃一个食物加速的毫秒数
+
+      var DIRS = {
+        up: { x: 0, y: -1 },
+        down: { x: 0, y: 1 },
+        left: { x: -1, y: 0 },
+        right: { x: 1, y: 0 }
       };
-    }
-    $$.log = function () {
-      console.log.apply(console, arguments);
-    };
 
-    $$.nearestModulo = function (num, module) {
-      var val = num % module;
-      if (val === 0) {
-        return num;
-      }
+      /* ---------- DOM ---------- */
+      var boardEl = document.getElementById("board");
+      var scoreEl = document.getElementById("score");
+      var bestEl = document.getElementById("best");
+      var lengthEl = document.getElementById("length");
+      var overlayEl = document.getElementById("overlay");
+      var overlayTitleEl = document.getElementById("overlay-title");
+      var overlayDescEl = document.getElementById("overlay-desc");
 
-      return val < module / 2 ? num - val : num + (module - val);
-    };
+      /* ---------- 状态 ---------- */
+      var cells = [];         // 所有格子 DOM
+      var drawn = [];         // 上一帧被点亮的格子下标
+      var snake = [];         // 蛇身，snake[0] 是蛇头
+      var dir = DIRS.right;   // 当前方向
+      var queue = [];         // 待生效的方向(最多两个)
+      var food = { x: 0, y: 0 };
+      var score = 0;
+      var best = readBest();
+      var state = "ready";    // ready | running | paused | over | won
+      var timer = null;
 
-    function dom(selector) {
-      return typeof selector === "object" ? selector : $(selector).get(0);
-    }
-
-    function on(evtName, handler, bobble) {
-      addEventListener.call(this.dom, evtName, handler, !!bobble);
-    }
-
-    function offset() {
-      return {
-        left: this.dom.scrollLeft,
-        top: this.dom.scrollTop
-      };
-    }
-
-    function height(val) {
-      if (isNaN(val)) {
-        return this.dom.clientHeight;
-      } else {
-        this.dom.style.height = val;
-        return this;
-      }
-    }
-
-    function text(str) {
-      this.dom.innerText = str;
-      return this;
-    }
-
-    function css(attrs) {
-      for (var attr in attrs) {
-        if (attrs.hasOwnProperty(attr)) {
-          this.dom.style[attr] = attrs[attr] + "px";
+      /* ---------- 事件绑定(兼容老 IE) ---------- */
+      function on(el, name, fn) {
+        if (el.addEventListener) {
+          el.addEventListener(name, fn, false);
+        } else if (el.attachEvent) {
+          el.attachEvent("on" + name, fn);
         }
       }
-    }
 
-    function append(tagName, size) {
-      var docFrag = document.createDocumentFragment();
-      while (size--) {
-        docFrag.appendChild(document.createElement(tagName));
+      function stopEvent(e) {
+        e = e || window.event;
+        if (e.preventDefault) {
+          e.preventDefault();
+        } else {
+          e.returnValue = false;
+        }
+        if (e.stopPropagation) {
+          e.stopPropagation();
+        } else {
+          e.cancelBubble = true;
+        }
       }
 
-      this.dom.appendChild(docFrag);
-    }
+      function keyCodeOf(e) {
+        e = e || window.event;
+        return e.which || e.keyCode;
+      }
 
-    function setData(data) {
-      var childs = this.dom.childNodes;
+      /* ---------- 最高分(不支持 localStorage 时静默忽略) ---------- */
+      var STORE_KEY = "snake.best";
 
-      $(childs).each(function (i, node) {
-        $(node).text(data[i].val);
-      });
-    }
+      function readBest() {
+        try {
+          var v = window.localStorage.getItem(STORE_KEY);
+          return v ? parseInt(v, 10) || 0 : 0;
+        } catch (err) {
+          return 0;
+        }
+      }
 
-    function value() {
-      return this.dom.value;
-    }
+      function writeBest(v) {
+        try {
+          window.localStorage.setItem(STORE_KEY, String(v));
+        } catch (err) { }
+      }
 
-  </script>
-  <script>
-    var count =40000; // 数据长度
-    var data = (function () {
-      var len = count, arr = []; while (len--) arr[len] = { _rn: len, val: len + 1 }; return arr;
+      /* ---------- 棋盘绘制 ---------- */
+      function buildBoard() {
+        boardEl.style.width = COLS * CELL + 4 + "px";
+        boardEl.style.height = ROWS * CELL + 4 + "px";
+        boardEl.style.boxSizing = "content-box";
+
+        var frag = document.createDocumentFragment();
+        for (var y = 0; y < ROWS; y++) {
+          for (var x = 0; x < COLS; x++) {
+            var cell = document.createElement("div");
+            cell.className = "cell";
+            cell.style.left = (x * CELL + 2) + "px";
+            cell.style.top = (y * CELL + 2) + "px";
+            cell.style.width = (CELL - GAP) + "px";
+            cell.style.height = (CELL - GAP) + "px";
+            frag.appendChild(cell);
+            cells.push(cell);
+          }
+        }
+        // 插到 overlay 之前，保证遮罩层始终盖在格子上
+        boardEl.insertBefore(frag, overlayEl);
+      }
+
+      function index(x, y) {
+        return y * COLS + x;
+      }
+
+      function paint(el, cls) {
+        el.className = cls;
+      }
+
+      function render() {
+        var i;
+        for (i = 0; i < drawn.length; i++) {
+          paint(cells[drawn[i]], "cell");
+        }
+        drawn = [];
+
+        for (i = 0; i < snake.length; i++) {
+          var idx = index(snake[i].x, snake[i].y);
+          paint(cells[idx], i === 0 ? "cell snake head" : "cell snake");
+          drawn.push(idx);
+        }
+
+        if (state !== "won") {
+          var foodIdx = index(food.x, food.y);
+          paint(cells[foodIdx], "cell food");
+          drawn.push(foodIdx);
+        }
+
+        scoreEl.innerHTML = String(score);
+        lengthEl.innerHTML = String(snake.length);
+        bestEl.innerHTML = String(best);
+      }
+
+      /* ---------- 游戏逻辑 ---------- */
+      function reset() {
+        var midY = Math.floor(ROWS / 2);
+        var midX = Math.floor(COLS / 2);
+        snake = [
+          { x: midX, y: midY },
+          { x: midX - 1, y: midY },
+          { x: midX - 2, y: midY }
+        ];
+        dir = DIRS.right;
+        queue = [];
+        score = 0;
+        placedFood();
+        render();
+      }
+
+      function interval() {
+        var t = BASE_SPEED - score * SPEED_STEP;
+        return t < MIN_SPEED ? MIN_SPEED : t;
+      }
+
+      function schedule() {
+        clearTimer();
+        timer = window.setInterval(step, interval());
+      }
+
+      function clearTimer() {
+        if (timer) {
+          window.clearInterval(timer);
+          timer = null;
+        }
+      }
+
+      function pushDir(name) {
+        var d = DIRS[name];
+        if (!d) {
+          return;
+        }
+        var last = queue.length ? queue[queue.length - 1] : dir;
+        if (last.x === -d.x && last.y === -d.y) {
+          return;   // 不能 180 度掉头
+        }
+        if (last.x === d.x && last.y === d.y) {
+          return;   // 同方向不重复入队
+        }
+        if (queue.length < 2) {
+          queue.push(d);
+        }
+      }
+
+      function occupied(x, y) {
+        for (var i = 0; i < snake.length; i++) {
+          if (snake[i].x === x && snake[i].y === y) {
+            return true;
+          }
+        }
+        return false;
+      }
+
+      function placedFood() {
+        var free = [];
+        for (var y = 0; y < ROWS; y++) {
+          for (var x = 0; x < COLS; x++) {
+            if (!occupied(x, y)) {
+              free.push({ x: x, y: y });
+            }
+          }
+        }
+        if (!free.length) {
+          return false;
+        }
+        var spot = free[Math.floor(Math.random() * free.length)];
+        food = { x: spot.x, y: spot.y };
+        return true;
+      }
+
+      function step() {
+        if (queue.length) {
+          dir = queue.shift();
+        }
+
+        var head = snake[0];
+        var nx = head.x + dir.x;
+        var ny = head.y + dir.y;
+
+        if (nx < 0 || ny < 0 || nx >= COLS || ny >= ROWS) {
+          return gameOver("撞墙了！");
+        }
+
+        var eating = (nx === food.x && ny === food.y);
+        // 不吃食物时尾巴会让位，所以尾巴那一格可以进入
+        var limit = snake.length - (eating ? 0 : 1);
+        for (var i = 0; i < limit; i++) {
+          if (snake[i].x === nx && snake[i].y === ny) {
+            return gameOver("咬到自己了！");
+          }
+        }
+
+        snake.unshift({ x: nx, y: ny });
+        if (eating) {
+          score++;
+          if (score > best) {
+            best = score;
+            writeBest(best);
+          }
+          if (snake.length >= COLS * ROWS) {
+            win();        // 先置为 won，render 就不会再画食物
+            render();
+            return;
+          }
+          placedFood();
+          schedule();   // 分数变了，速度跟着变
+        } else {
+          snake.pop();
+        }
+
+        render();
+      }
+
+      /* ---------- 状态切换 ---------- */
+      function showOverlay(title, desc) {
+        overlayTitleEl.innerHTML = title;
+        overlayDescEl.innerHTML = desc;
+        overlayEl.className = "overlay";
+      }
+
+      function hideOverlay() {
+        overlayEl.className = "overlay hide";
+      }
+
+      function start() {
+        clearTimer();
+        reset();
+        state = "running";
+        hideOverlay();
+        schedule();
+      }
+
+      function pause() {
+        if (state !== "running") {
+          return;
+        }
+        state = "paused";
+        clearTimer();
+        showOverlay("已暂停", "按 空格 继续<br>按 R 重新开始");
+      }
+
+      function resume() {
+        if (state !== "paused") {
+          return;
+        }
+        state = "running";
+        hideOverlay();
+        schedule();
+      }
+
+      function gameOver(reason) {
+        state = "over";
+        clearTimer();
+        showOverlay("游戏结束", reason + "<br>得分 " + score +
+          " · 长度 " + snake.length + "<br>按 空格 或 R 重新开始");
+      }
+
+      function win() {
+        state = "won";
+        clearTimer();
+        showOverlay("满盘啦！", "你填满了整个棋盘，得分 " + score +
+          "<br>按 空格 或 R 再来一局");
+      }
+
+      /* ---------- 输入 ---------- */
+      var KEYMAP = {
+        37: "left", 38: "up", 39: "right", 40: "down",
+        65: "left", 87: "up", 68: "right", 83: "down",  // WASD
+        72: "left", 75: "up", 76: "right", 74: "down"   // HJKL
+      };
+
+      function handleKey(e) {
+        var code = keyCodeOf(e);
+        var name = KEYMAP[code];
+
+        if (name) {
+          stopEvent(e);
+          if (state === "ready") {
+            start();
+          }
+          if (state === "running") {
+            pushDir(name);
+          }
+          return;
+        }
+
+        if (code === 32) {            // 空格
+          stopEvent(e);
+          if (state === "ready" || state === "over" || state === "won") {
+            start();
+          } else if (state === "running") {
+            pause();
+          } else if (state === "paused") {
+            resume();
+          }
+          return;
+        }
+
+        if (code === 82) {            // R
+          stopEvent(e);
+          start();
+        }
+      }
+
+      function bindPad() {
+        var buttons = document.querySelectorAll
+          ? document.querySelectorAll(".pad button")
+          : [];
+
+        function bindOne(btn) {
+          var name = btn.getAttribute("data-dir");
+          function press(e) {
+            stopEvent(e);
+            if (state === "ready") {
+              start();
+            }
+            if (state === "running") {
+              pushDir(name);
+            }
+          }
+          on(btn, "click", press);
+        }
+
+        for (var i = 0; i < buttons.length; i++) {
+          bindOne(buttons[i]);
+        }
+
+        on(overlayEl, "click", function (e) {
+          stopEvent(e);
+          if (state === "paused") {
+            resume();
+          } else {
+            start();
+          }
+        });
+      }
+
+      // 触摸滑动
+      var touchStart = null;
+
+      function bindSwipe() {
+        on(boardEl, "touchstart", function (e) {
+          var t = e.touches && e.touches[0];
+          if (t) {
+            touchStart = { x: t.clientX, y: t.clientY };
+          }
+        });
+
+        on(boardEl, "touchmove", function (e) {
+          if (e.preventDefault) {
+            e.preventDefault();
+          }
+        });
+
+        on(boardEl, "touchend", function (e) {
+          if (!touchStart) {
+            return;
+          }
+          var t = (e.changedTouches && e.changedTouches[0]) || null;
+          if (!t) {
+            touchStart = null;
+            return;
+          }
+          var dx = t.clientX - touchStart.x;
+          var dy = t.clientY - touchStart.y;
+          touchStart = null;
+          if (Math.abs(dx) < 18 && Math.abs(dy) < 18) {
+            return;
+          }
+          var name;
+          if (Math.abs(dx) > Math.abs(dy)) {
+            name = dx > 0 ? "right" : "left";
+          } else {
+            name = dy > 0 ? "down" : "up";
+          }
+          if (state === "ready") {
+            start();
+          }
+          if (state === "running") {
+            pushDir(name);
+          }
+        });
+      }
+
+      /* ---------- 启动 ---------- */
+      buildBoard();
+      reset();
+      render();
+      bindPad();
+      bindSwipe();
+      on(document, "keydown", handleKey);
+      on(boardEl, "dragstart", stopEvent);
     })();
-
-    var PREBUFFER = 5;     // 预缓存10条记录
-    var ROW_HEIGHT = 32;    // 每行元素高度：根据实际取值
-    var PREBUFFER_HEIGHT = PREBUFFER * ROW_HEIGHT; // 前后预缓存元素高度
-    var PREBUFFER_HEIGHT_TWICE = PREBUFFER_HEIGHT * 2;    // 前后预缓存之和高度
-
-    var VIEW_HEIGHT = $$('.view').height();    // 可视区视图高度
-    var bufferView = $$('.buffer-view').height($$.nearestModulo(VIEW_HEIGHT, ROW_HEIGHT) + PREBUFFER_HEIGHT * 2);
-
-    var ACTUALDOMAIN_HEIGHT = data.length * ROW_HEIGHT;    // 实际计算区域高度
-    var size = bufferView.height() / ROW_HEIGHT;
-    $$('.actual-domain').height(ACTUALDOMAIN_HEIGHT);
-    $('.view').on('scroll', function (evt) {
-      var offset = $$(this).offset();
-      var bottom = ACTUALDOMAIN_HEIGHT - offset.top - VIEW_HEIGHT;
-      var top = 0;
-
-      if (offset.top < PREBUFFER_HEIGHT) {
-        top = -offset.top;
-      } else if (bottom < PREBUFFER_HEIGHT) {
-        top = bottom - PREBUFFER_HEIGHT_TWICE;
-      } else {
-        top = -PREBUFFER_HEIGHT;
-      }
-
-      bufferView.css({ top: top });
-
-      var domain = range(offset.top, offset.top + VIEW_HEIGHT + PREBUFFER_HEIGHT_TWICE);
-
-      if (offset.top + PREBUFFER_HEIGHT_TWICE + VIEW_HEIGHT <= ACTUALDOMAIN_HEIGHT) {
-        bufferView.setData(data.slice(domain[0], domain[1]));
-      } else {
-        bufferView.setData(data.slice(-size));
-      }
-    });
-
-    function range(start, end) {
-      return [
-        $$.nearestModulo(start, ROW_HEIGHT) / ROW_HEIGHT,
-        $$.nearestModulo(end, ROW_HEIGHT) / ROW_HEIGHT
-      ];
-    }
-
-    bufferView.append('li', size);
-    bufferView.setData(data.slice(0, size));
-
   </script>
 </body>
 
